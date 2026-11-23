@@ -20,7 +20,12 @@ read.addEventListener('click',async()=>{
   }
   reading.style.display='block';reading.scrollIntoView({behavior:'smooth'});status.textContent='Palm analysis complete. Purchase the full report for $1.00.';
  }catch(error){status.textContent=error.message;}finally{read.disabled=false;read.textContent='Reveal My Reading';}
-});
+});} catch(error) {
+  status.textContent = error.message;
+} finally {
+  read.disabled = false;
+  read.textContent = 'Reveal My Reading';
+}
 document.getElementById('buy').addEventListener('click',async()=>{status.textContent='Opening secure checkout…';try{const r=await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const data=await r.json();if(!r.ok||!data.url)throw new Error(data.error||'Checkout unavailable');location.assign(data.url);}catch(e){status.textContent=e.message;}});
 const params=new URLSearchParams(location.search);if(params.has('canceled'))status.textContent='Payment canceled. You have not been charged.';
 if(params.has('session_id')){status.textContent='Verifying payment…';fetch('/api/verify?session_id='+encodeURIComponent(params.get('session_id'))).then(r=>r.json()).then(data=>{if(data.paid){sessionStorage.setItem('palmystic_paid_session',params.get('session_id'));downloadSection.style.display='block';status.textContent='Payment confirmed. Your report is ready.';}else status.textContent='Payment could not be verified.';}).catch(()=>status.textContent='Verification unavailable. Please try again later.');}
