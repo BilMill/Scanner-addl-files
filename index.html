@@ -4,30 +4,25 @@
 <section class="card center"><h2>Discover the story in your hands</h2><p>Upload a photo of your palm and explore a traditional palmistry-inspired reading.</p><label for="palm" class="upload">✦ &nbsp; Tap to photograph or upload your palm<br><span class="small">JPG or PNG recommended · Photo is sent securely for analysis</span></label><input id="palm" type="file" accept="image/*" capture="environment"><img id="preview" alt="Your uploaded palm"><p class="small">AI will describe visible palm features when configured. Interpretations are for entertainment only.</p><button id="read" class="btn" disabled>Reveal My Reading</button></section>
 <section class="card" id="reading"><h2 class="center">Your Palmistry Reading</h2><div id="analysisOutput" class="grid"></div><p class="notice small">AI descriptions may be inaccurate. Traditional palmistry is entertainment, not a scientific prediction.</p></section>
 <section class="card center"><h2>Keep Your Reading</h2><div class="price">$1.00</div><p>One-time payment for a downloadable palmistry-inspired report.</p><button class="btn" id="buy">Pay $1.00 with Stripe</button><p id="status" role="status" class="small"></p><div id="downloadSection"><button id="download" class="btn">Download My Report</button></div><p class="small">Payment is processed securely by Stripe once configured. No subscriptions.</p></section><footer>© PalmMystic · For entertainment and reflection only · No medical or future predictions</footer></main><script>
-const input=document.getElementById('palm'),preview=document.getElementById('preview'),read=document.getElementById('read'),reading=document.getElementById('reading'),status=document.getElementById('status'),downloadSection=document.getElementById('downloadSection');let objectUrl;let latestReading=null;
+const input=document.getElementById('palm'),preview=document.getElementById('preview'),read=document.getElementById('read'),reading=document.getElementById('reading'),status=document.getElementById('status'),downloadSection=document.getElementById('downloadSection');let objectUrl;let latestReading=null;try{const saved=sessionStorage.getItem('palmystic_reading');if(saved)latestReading={reading:saved};}catch(e){}
 input.addEventListener('change',()=>{const f=input.files?.[0];if(objectUrl)URL.revokeObjectURL(objectUrl);if(!f||!f.type.startsWith('image/')){read.disabled=true;preview.style.display='none';return;}objectUrl=URL.createObjectURL(f);preview.src=objectUrl;preview.style.display='block';read.disabled=false;});
 read.addEventListener('click',async()=>{
  const file=input.files?.[0];if(!file)return;
- if(file.size>4*1024*1024){status.textContent='Please choose an image under 4 MB.';return;}
+ if(file.size>3*1024*1024){status.textContent='Please choose an image under 3 MB.';return;}
  read.disabled=true;read.textContent='Analyzing your palm…';
  try{
   const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)});
-  const response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:dataUrl})});
+  const response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:dataUrl,mimeType:file.type})});
   const result=await response.json();if(!response.ok)throw new Error(result.error||'Palm analysis unavailable');
-  latestReading=result;const output=document.getElementById('analysisOutput');output.replaceChildren();
-  for(const [label,key] of [['♡ Heart line','heart'],['✧ Head line','head'],['☾ Life line','life'],['✦ Fate line','fate']]){
-   const tile=document.createElement('div');tile.className='tile';const heading=document.createElement('b');heading.textContent=label;const desc=document.createElement('p');desc.textContent=result[key]||'Not clearly visible in this photo.';tile.append(heading,desc);output.append(tile);
-  }
+  if(typeof result.reading!=='string'||!result.reading.trim())throw new Error('No reading returned');
+  latestReading=result;try{sessionStorage.setItem('palmystic_reading',result.reading)}catch(e){}
+  const output=document.getElementById('analysisOutput');output.replaceChildren();
+  const tile=document.createElement('div');tile.className='tile';tile.style.gridColumn='1 / -1';tile.style.whiteSpace='pre-wrap';tile.textContent=result.reading;output.append(tile);
   reading.style.display='block';reading.scrollIntoView({behavior:'smooth'});status.textContent='Palm analysis complete. Purchase the full report for $1.00.';
- }catch(error){status.textContent=error.message;}finally{read.disabled=false;read.textContent='Reveal My Reading';}
-});}
-  status.textContent = error.message;
-} finally {
-  read.disabled = false;
-  read.textContent = 'Reveal My Reading';
-}
+ }catch(error){status.textContent=error.message;alert(error.message);}finally{read.disabled=false;read.textContent='Reveal My Reading';}
+});
 document.getElementById('buy').addEventListener('click',async()=>{status.textContent='Opening secure checkout…';try{const r=await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const data=await r.json();if(!r.ok||!data.url)throw new Error(data.error||'Checkout unavailable');location.assign(data.url);}catch(e){status.textContent=e.message;}});
 const params=new URLSearchParams(location.search);if(params.has('canceled'))status.textContent='Payment canceled. You have not been charged.';
 if(params.has('session_id')){status.textContent='Verifying payment…';fetch('/api/verify?session_id='+encodeURIComponent(params.get('session_id'))).then(r=>r.json()).then(data=>{if(data.paid){sessionStorage.setItem('palmystic_paid_session',params.get('session_id'));downloadSection.style.display='block';status.textContent='Payment confirmed. Your report is ready.';}else status.textContent='Payment could not be verified.';}).catch(()=>status.textContent='Verification unavailable. Please try again later.');}
-document.getElementById('download').addEventListener('click',()=>{if(downloadSection.style.display!=='block')return;const report=`PALMMYSTIC — PALMISTRY ENTERTAINMENT REPORT\n\n${latestReading?`Heart line: ${latestReading.heart}\n\nHead line: ${latestReading.head}\n\nLife line: ${latestReading.life}\n\nFate line: ${latestReading.fate}\n\n`:`General palmistry themes: heart, head, life, and fate lines.\n\n`}This is entertainment, not a scientific prediction.\n`;const blob=new Blob([report],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='PalmMystic-Reading.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+document.getElementById('download').addEventListener('click',()=>{if(downloadSection.style.display!=='block')return;const report=`PALMMYSTIC — PALMISTRY ENTERTAINMENT REPORT\n\n${latestReading?latestReading.reading+'\n\n':`No personalized reading saved in this browser.\n\n`}This is entertainment, not a scientific prediction.\n`;const blob=new Blob([report],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='PalmMystic-Reading.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 </script></body></html>
