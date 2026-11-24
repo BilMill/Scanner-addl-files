@@ -38,8 +38,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    const generate = async (model) => fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent`,
       {
         method: "POST",
         headers: {
@@ -73,10 +73,22 @@ palmistry is not scientifically validated.`
       }
     );
 
+    let response = await generate("models/gemini-2.5-flash");
+    if (response.status === 404) {
+      const catalogResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100", {headers: {"x-goog-api-key": key}});
+      if (catalogResponse.ok) {
+        const catalog = await catalogResponse.json();
+        const candidates = (catalog.models || []).filter(m => m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini-[0-9].*flash/.test(m.name) && !/audio|tts|image|live|robot|embedding|preview|experimental|exp-|gemini-2\.5-flash$/.test(m.name)).sort((a,b)=>b.name.localeCompare(a.name,undefined,{numeric:true}));
+        for (const model of candidates.slice(0,3)) {
+          response = await generate(model.name);
+          if (response.status !== 404) break;
+        }
+      } else {console.error("Gemini catalog HTTP status:", catalogResponse.status);}
+    }
     if (!response.ok) {
       console.error("Gemini HTTP status:", response.status);
       return res.status(502).json({
-        error: "Gemini request failed"
+        error: response.status === 404 ? "No compatible Gemini model available" : response.status === 429 ? "Gemini quota exceeded. Try again later." : [401,403].includes(response.status) ? "Gemini API access denied. Check key permissions." : "Gemini request failed (" + response.status + ")"
       });
     }
 
