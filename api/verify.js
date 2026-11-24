@@ -10,7 +10,8 @@ export default async function handler(req,res){
   const stripe=new Stripe(key,{timeout:15000,maxNetworkRetries:1});
   const session=await stripe.checkout.sessions.retrieve(id,{expand:["line_items"]});
   const item=session.line_items?.data?.[0];
-  const paid=session.payment_status==="paid"&&session.status==="complete"&&session.mode==="payment"&&session.amount_total===100&&session.currency==="usd"&&session.livemode===true&&item?.price?.id==="price_1UeizCRV4tqvPXfMMo59GRXi"&&item.quantity===1;
-  return res.status(200).json({paid});
+  const premium=session.metadata?.product==="palmmystic_prosperity";
+ const paid=session.payment_status==="paid"&&session.status==="complete"&&session.mode==="payment"&&session.amount_total===(premium?499:100)&&session.currency==="usd"&&session.livemode===true&&(premium?item?.price?.unit_amount===499:item?.price?.id==="price_1UeizCRV4tqvPXfMMo59GRXi")&&item.quantity===1;
+  return res.status(200).json({paid,kind:premium?"prosperity":"classic"});
  }catch(e){console.error("Stripe verification failure:",e.type||e.name,e.code||"",e.statusCode||"");return res.status(502).json({paid:false,error:"Verification temporarily unavailable."});}
 }
