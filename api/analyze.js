@@ -55,8 +55,7 @@ traditional palmistry for entertainment.
 Describe visible heart, head, life and fate lines.
 If features are unclear, say so.
 Do not predict health, lifespan or real events.
-Give a personalized reading and explain that
-palmistry is not scientifically validated.`
+Give a concise personalized reading of 250 to 350 words total. Cover all four lines, even if some are unclear. Use plain text, no Markdown symbols. Put each line heading on its own line. Finish every section and explain that palmistry is not scientifically validated.`
               },
               {
                 inline_data: {
@@ -67,7 +66,7 @@ palmistry is not scientifically validated.`
             ]
           }],
           generationConfig: {
-            maxOutputTokens: 1000
+            maxOutputTokens: 4096
           }
         })
       }
@@ -96,6 +95,7 @@ palmistry is not scientifically validated.`
     const data = await response.json();
 
     const reading = data.candidates?.[0]?.content?.parts
+      ?.filter(p => !p.thought)
       ?.map(p => p.text || "")
       .join("\n")
       .trim();
