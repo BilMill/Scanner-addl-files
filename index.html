@@ -20,7 +20,7 @@ read.addEventListener('click',async()=>{
   }
   reading.style.display='block';reading.scrollIntoView({behavior:'smooth'});status.textContent='Palm analysis complete. Purchase the full report for $1.00.';
  }catch(error){status.textContent=error.message;}finally{read.disabled=false;read.textContent='Reveal My Reading';}
-});} catch(error) {
+});}
   status.textContent = error.message;
 } finally {
   read.disabled = false;
