@@ -74,21 +74,22 @@ palmistry is not scientifically validated.`
     );
 
     let response = await generate("models/gemini-2.5-flash");
-    if (response.status === 404) {
+    if ([404,429,500,502,503,504].includes(response.status)) {
       const catalogResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100", {headers: {"x-goog-api-key": key}});
       if (catalogResponse.ok) {
         const catalog = await catalogResponse.json();
         const candidates = (catalog.models || []).filter(m => m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini-[0-9].*flash/.test(m.name) && !/audio|tts|image|live|robot|embedding|preview|experimental|exp-|gemini-2\.5-flash$/.test(m.name)).sort((a,b)=>b.name.localeCompare(a.name,undefined,{numeric:true}));
         for (const model of candidates.slice(0,3)) {
+          console.info("Trying Gemini model:", model.name);
           response = await generate(model.name);
-          if (response.status !== 404) break;
+          if (![404,429,500,502,503,504].includes(response.status)) break;
         }
       } else {console.error("Gemini catalog HTTP status:", catalogResponse.status);}
     }
     if (!response.ok) {
       console.error("Gemini HTTP status:", response.status);
       return res.status(502).json({
-        error: response.status === 404 ? "No compatible Gemini model available" : response.status === 429 ? "Gemini quota exceeded. Try again later." : [401,403].includes(response.status) ? "Gemini API access denied. Check key permissions." : "Gemini request failed (" + response.status + ")"
+        error: response.status === 404 ? "No compatible Gemini model available" : [500,502,503,504].includes(response.status) ? "Gemini is temporarily unavailable. Please try again shortly." : response.status === 429 ? "Gemini quota exceeded. Try again later." : [401,403].includes(response.status) ? "Gemini API access denied. Check key permissions." : "Gemini request failed (" + response.status + ")"
       });
     }
 
