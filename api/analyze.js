@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent`,
       {
         method: "POST",
-        signal: AbortSignal.timeout(22000),
+        signal: AbortSignal.timeout(15000),
         headers: {
           "Content-Type": "application/json",
           "x-goog-api-key": key
@@ -74,8 +74,15 @@ Give a concise personalized reading of 250 to 350 words total. Cover all four li
       }
     );
 
+    const catalogResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100",{signal:AbortSignal.timeout(4000),headers:{"x-goog-api-key":key}});
+    if (!catalogResponse.ok) return res.status(502).json({error:"AI model catalog unavailable"});
+    const catalog = await catalogResponse.json();
+    const models = (catalog.models||[]).filter(m=>m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini-.*flash/.test(m.name) && !/audio|tts|image|live|robot|embedding/.test(m.name)).map(m=>m.name);
+    models.sort((a,b)=>Number(!a.includes("lite"))-Number(!b.includes("lite")) || Number(/preview|experimental/.test(a))-Number(/preview|experimental/.test(b)) || b.localeCompare(a,undefined,{numeric:true}));
+    console.info("Available scanner models:",models.join(","));
+    if (!models.length) return res.status(502).json({error:"No compatible AI model available"});
     let response;
-    for (const model of ["models/gemini-2.5-flash-lite","models/gemini-2.5-flash"]) {
+    for (const model of models.slice(0,3)) {
       response = await generate(model).catch(()=>({ok:false,status:504}));
       console.info("Gemini model result:",model,response.status);
       if (response.ok || ![400,404,429,500,502,503,504].includes(response.status)) break;
