@@ -1,18 +1,11 @@
+import Stripe from "stripe";
 export default async function handler(req,res){
  if(req.method!=="POST")return res.status(405).json({error:"POST required"});
- const key=process.env.STRIPE_SECRET_KEY;
- if(!key)return res.status(503).json({error:"Stripe checkout is not configured yet."});
- const params=new URLSearchParams();
- params.set("mode","payment");
- params.set("line_items[0][price]","price_1UeizCRV4tqvPXfMMo59GRXi");
- params.set("line_items[0][quantity]","1");
- params.set("success_url","https://palmmystic-vercel.vercel.app/?session_id={CHECKOUT_SESSION_ID}");
- params.set("cancel_url","https://palmmystic-vercel.vercel.app/?canceled=1");
- params.set("payment_method_types[0]","card");
+ const key=(process.env.STRIPE_SECRET_KEY||"").trim();
+ if(!/^(sk|rk)_live_[A-Za-z0-9]+$/.test(key))return res.status(503).json({error:"Stripe live API key is missing or invalid."});
  try{
-  const response=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{"Authorization":"Bearer "+key,"Content-Type":"application/x-www-form-urlencoded"},body:params.toString(),signal:AbortSignal.timeout(12000)});
-  const data=await response.json();
-  if(!response.ok||!data.url){console.error("Stripe checkout:",response.status,data.error?.code);return res.status(502).json({error:"Unable to open checkout. Please try again later."});}
-  return res.status(200).json({url:data.url});
- }catch(e){console.error("Stripe checkout connection:",e.name);return res.status(502).json({error:"Checkout temporarily unavailable."});}
+  const stripe=new Stripe(key,{timeout:15000,maxNetworkRetries:1});
+  const session=await stripe.checkout.sessions.create({mode:"payment",line_items:[{price:"price_1UeizCRV4tqvPXfMMo59GRXi",quantity:1}],success_url:"https://palmmystic-vercel.vercel.app/?session_id={CHECKOUT_SESSION_ID}",cancel_url:"https://palmmystic-vercel.vercel.app/?canceled=1",payment_method_types:["card"],metadata:{product:"palmmystic_report"}});
+  return res.status(200).json({url:session.url});
+ }catch(e){console.error("Stripe checkout failure:",e.type||e.name,e.code||"",e.statusCode||"",e.cause?.code||"");return res.status(502).json({error:"Checkout temporarily unavailable."});}
 }
