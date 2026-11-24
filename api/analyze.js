@@ -14,7 +14,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const { image, mimeType } = req.body || {};
+    const { image, mimeType, kind } = req.body || {};
     const allowed = ["image/jpeg", "image/png", "image/webp"];
 
     if (!allowed.includes(mimeType) || typeof image !== "string") {
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
           contents: [{
             parts: [
               {
-                text: `Analyze this palm photograph using
+                text: kind === 'prosperity' ? `Analyze visible palm features for a Millionaire & Prosperity Reading, purely as folklore entertainment. Discuss traditional money triangle, sun and fate lines, ambition and entrepreneurial symbolism, and three reflective affirmations. If markings are unclear say so; never invent markings or infer actual financial ability, future wealth, income or investment outcomes. Use plain text headings, 250–350 words, and a disclaimer that palmistry cannot predict wealth.` : `Analyze this palm photograph using
 traditional palmistry for entertainment.
 Describe visible heart, head, life and fate lines.
 If features are unclear, say so.
