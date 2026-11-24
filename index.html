@@ -13,7 +13,7 @@ read.addEventListener('click',async()=>{
  try{
   const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)});
   const response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:dataUrl,mimeType:file.type})});
-  const result=await response.json();if(!response.ok)throw new Error(result.error||'Palm analysis unavailable');
+  let result;try{result=await response.json();}catch(e){throw new Error(response.status===504?'The AI took too long to respond. Please try again.':'Scanner returned an unexpected response ('+response.status+').');}if(!response.ok)throw new Error(result.error||'Palm analysis unavailable');
   if(typeof result.reading!=='string'||!result.reading.trim())throw new Error('No reading returned');
   latestReading=result;try{sessionStorage.setItem('palmystic_reading',result.reading)}catch(e){}
   const output=document.getElementById('analysisOutput');output.replaceChildren();
