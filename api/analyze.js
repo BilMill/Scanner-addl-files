@@ -68,24 +68,17 @@ Give a concise personalized reading of 250 to 350 words total. Cover all four li
           }],
           generationConfig: {
             maxOutputTokens: 4096,
-            ...(model.includes("2.5") ? {thinkingConfig:{thinkingBudget:0}} : {thinkingConfig:{thinkingLevel:"low"}})
+            ...(model.includes("2.5") ? {thinkingConfig:{thinkingBudget:0}} : {})
           }
         })
       }
     );
 
-    let response = await generate("models/gemini-3.8-flash").catch(()=>({ok:false,status:504}));
-    if ([400,404,429,500,502,503,504].includes(response.status)) {
-      const catalogResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100", {signal:AbortSignal.timeout(4000),headers: {"x-goog-api-key": key}});
-      if (catalogResponse.ok) {
-        const catalog = await catalogResponse.json();
-        const candidates = (catalog.models || []).filter(m => m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini-[0-9].*flash/.test(m.name) && !/audio|tts|image|live|robot|embedding|preview|experimental|exp-|gemini-2\.5-flash$/.test(m.name)).sort((a,b)=>b.name.localeCompare(a.name,undefined,{numeric:true}));
-        for (const model of candidates.filter(m=>m.name!=="models/gemini-3.8-flash").slice(0,1)) {
-          console.info("Trying Gemini model:", model.name);
-          response = await generate(model.name).catch(()=>({ok:false,status:504}));
-          if (![404,429,500,502,503,504].includes(response.status)) break;
-        }
-      } else {console.error("Gemini catalog HTTP status:", catalogResponse.status);}
+    let response;
+    for (const model of ["models/gemini-2.5-flash-lite","models/gemini-2.5-flash"]) {
+      response = await generate(model).catch(()=>({ok:false,status:504}));
+      console.info("Gemini model result:",model,response.status);
+      if (response.ok || ![400,404,429,500,502,503,504].includes(response.status)) break;
     }
     if (!response.ok) {
       console.error("Gemini HTTP status:", response.status);
